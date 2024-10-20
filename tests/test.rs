@@ -1,7 +1,7 @@
 use drillx::equix;
-use ore_api::consts::{BUS_ADDRESSES, NOOP_PROGRAM_ID};
-use ore_miner_delegation::{pda::{delegated_stake_pda, managed_proof_pda}, utils::AccountDeserialize as _};
-use ore_utils::AccountDeserialize as _;
+use coal_api::consts::{COAL_BUS_ADDRESSES, NOOP_PROGRAM_ID};
+use coal_miner_delegation::{pda::{delegated_stake_pda, managed_proof_pda}, utils::AccountDeserialize as _};
+use coal_utils::AccountDeserialize as _;
 use solana_program::{clock::Clock, pubkey::Pubkey, rent::Rent, system_instruction};
 use solana_program_test::{processor, read_file, ProgramTest, ProgramTestContext};
 use solana_sdk::{
@@ -20,13 +20,13 @@ async fn test_register_proof() {
     let payer = context.payer;
 
     let managed_proof_account = managed_proof_pda(payer.pubkey());
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
     // TODO: move transfer into register_proof program ix
-    let ix = ore_miner_delegation::instruction::open_managed_proof(payer.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(payer.pubkey());
 
     let mut tx = Transaction::new_with_payer(&[ix], Some(&payer.pubkey()));
 
@@ -42,25 +42,25 @@ async fn test_register_proof() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = banks_client.get_account(ore_proof_account.0).await;
+    // Verify coal::Proof data
+    let coal_proof = banks_client.get_account(coal_proof_account.0).await;
 
     assert!(
-        ore_proof.is_ok(),
+        coal_proof.is_ok(),
         "should get account info from banks_client"
     );
-    let ore_proof = ore_proof.unwrap();
-    assert!(ore_proof.is_some(), "ore proof account should exist now");
+    let coal_proof = coal_proof.unwrap();
+    assert!(coal_proof.is_some(), "coal proof account should exist now");
 
-    let ore_proof_account_info = ore_proof.unwrap();
+    let coal_proof_account_info = coal_proof.unwrap();
 
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof_account_info.data);
-    assert!(ore_proof.is_ok());
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof_account_info.data);
+    assert!(coal_proof.is_ok());
 
-    let ore_proof = ore_proof.unwrap();
+    let coal_proof = coal_proof.unwrap();
 
     assert_eq!(
-        0, ore_proof.balance,
+        0, coal_proof.balance,
         "Newly created proof account balance should be 0"
     );
 
@@ -74,13 +74,13 @@ async fn test_register_proof() {
     let managed_proof = managed_proof.unwrap();
     assert!(
         managed_proof.is_some(),
-        "ore proof account should exist now"
+        "coal proof account should exist now"
     );
 
     let managed_proof_account_info = managed_proof.unwrap();
 
     let managed_proof =
-        ore_miner_delegation::state::ManagedProof::try_from_bytes(&managed_proof_account_info.data);
+        coal_miner_delegation::state::ManagedProof::try_from_bytes(&managed_proof_account_info.data);
     assert!(managed_proof.is_ok());
 
     let managed_proof = managed_proof.unwrap();
@@ -101,7 +101,7 @@ pub async fn test_init_delegate_stake_account() {
 
     let delegated_stake_account = delegated_stake_pda(context.payer.pubkey(), context.payer.pubkey());
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
 
     let mut tx = Transaction::new_with_payer(&[ix], Some(&context.payer.pubkey()));
 
@@ -120,7 +120,7 @@ pub async fn test_init_delegate_stake_account() {
         .expect("process_transaction should be ok");
 
     // Create the DelegatedStake Accont
-    let ix = ore_miner_delegation::instruction::init_delegate_stake(
+    let ix = coal_miner_delegation::instruction::init_delegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         context.payer.pubkey(),
@@ -160,7 +160,7 @@ pub async fn test_init_delegate_stake_account() {
 
     let delegated_stake_account_info = delegated_stake.unwrap();
 
-    let delegated_stake = ore_miner_delegation::state::DelegatedStake::try_from_bytes(
+    let delegated_stake = coal_miner_delegation::state::DelegatedStake::try_from_bytes(
         &delegated_stake_account_info.data,
     );
     assert!(delegated_stake.is_ok());
@@ -179,26 +179,26 @@ pub async fn test_mine() {
     let mut context = init_program().await;
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             context.payer.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
     // send some sol to the pda to ensure the program will clear the balanace and then open the account
     let ix0 =
         system_instruction::transfer(&context.payer.pubkey(), &managed_proof_account.0, 100000000);
-    let ix1 = ore_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
+    let ix1 = coal_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
 
     // send some sol to the pda to ensure the program will clear the balanace and then open the account
     let ix2 = system_instruction::transfer(
@@ -206,7 +206,7 @@ pub async fn test_mine() {
         &delegated_stake_account.0,
         100000000,
     );
-    let ix_delegate_stake = ore_miner_delegation::instruction::init_delegate_stake(
+    let ix_delegate_stake = coal_miner_delegation::instruction::init_delegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         context.payer.pubkey(),
@@ -230,16 +230,16 @@ pub async fn test_mine() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -252,7 +252,7 @@ pub async fn test_mine() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -279,13 +279,13 @@ pub async fn test_mine() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(context.payer.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(context.payer.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
     let ix =
-        ore_miner_delegation::instruction::mine(context.payer.pubkey(), BUS_ADDRESSES[0], solution);
+        coal_miner_delegation::instruction::mine(context.payer.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -307,14 +307,14 @@ pub async fn test_mine() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account mount
     let delegated_stake = context
@@ -324,7 +324,7 @@ pub async fn test_mine() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
 }
@@ -334,25 +334,25 @@ pub async fn test_claim() {
     let mut context = init_program().await;
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             context.payer.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
 
-    let ix_delegate_stake = ore_miner_delegation::instruction::init_delegate_stake(
+    let ix_delegate_stake = coal_miner_delegation::instruction::init_delegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         context.payer.pubkey(),
@@ -374,16 +374,16 @@ pub async fn test_claim() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -396,7 +396,7 @@ pub async fn test_claim() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -423,13 +423,13 @@ pub async fn test_claim() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(context.payer.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(context.payer.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
     let ix =
-        ore_miner_delegation::instruction::mine(context.payer.pubkey(), BUS_ADDRESSES[0], solution);
+        coal_miner_delegation::instruction::mine(context.payer.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -451,14 +451,14 @@ pub async fn test_claim() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -468,29 +468,29 @@ pub async fn test_claim() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let miner_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &context.payer.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
     // create miners ata
     let ix_0 = create_associated_token_account(
         &context.payer.pubkey(),
         &context.payer.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
     // Claim from the delegated balance
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         miner_token_account_addr,
-        ore_proof.balance,
+        coal_proof.balance,
     );
 
     let mut tx = Transaction::new_with_payer(&[ix_0, ix], Some(&context.payer.pubkey()));
@@ -509,14 +509,14 @@ pub async fn test_claim() {
         .await
         .expect("process_transaction should be ok");
 
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert_eq!(ore_proof.balance, 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert_eq!(coal_proof.balance, 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -526,9 +526,9 @@ pub async fn test_claim() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 }
 
 #[tokio::test]
@@ -560,26 +560,26 @@ pub async fn test_stake() {
         .expect("process_transaction should be ok");
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             miner.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(miner.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(miner.pubkey());
 
     let ix_delegate_stake =
-        ore_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), payer.pubkey());
+        coal_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), payer.pubkey());
     let mut tx = Transaction::new_with_payer(&[ix, ix_delegate_stake], Some(&payer.pubkey()));
 
     let blockhash = context
@@ -596,16 +596,16 @@ pub async fn test_stake() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -618,7 +618,7 @@ pub async fn test_stake() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -645,12 +645,12 @@ pub async fn test_stake() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(miner.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(miner.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
-    let ix = ore_miner_delegation::instruction::mine(miner.pubkey(), BUS_ADDRESSES[0], solution);
+    let ix = coal_miner_delegation::instruction::mine(miner.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -672,14 +672,14 @@ pub async fn test_stake() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -689,30 +689,30 @@ pub async fn test_stake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     // create stakers ata
     let ix_2 = create_associated_token_account(
         &miner.pubkey(),
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
     // Claim from the delegated balance
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         miner.pubkey(),
         miner.pubkey(),
         staker_token_account_addr,
-        ore_proof.balance,
+        coal_proof.balance,
     );
 
     let mut tx = Transaction::new_with_payer(&[ix_2, ix], Some(&payer.pubkey()));
@@ -731,14 +731,14 @@ pub async fn test_stake() {
         .await
         .expect("process_transaction should be ok");
 
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert_eq!(ore_proof.balance, 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert_eq!(coal_proof.balance, 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -748,12 +748,12 @@ pub async fn test_stake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account =
-        get_associated_token_address(&staker.pubkey(), &ore_api::consts::MINT_ADDRESS);
+        get_associated_token_address(&staker.pubkey(), &coal_api::consts::COAL_MINT_ADDRESS);
     let staker_token_account = context
         .banks_client
         .get_account(staker_token_account)
@@ -768,7 +768,7 @@ pub async fn test_stake() {
     let ix1 = create_associated_token_account(
         &payer.pubkey(),
         &managed_proof_account.0,
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
@@ -785,8 +785,8 @@ pub async fn test_stake() {
 
     // Delegate stake from staker to miner pool
     let ix0 =
-        ore_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), payer.pubkey());
-    let ix = ore_miner_delegation::instruction::delegate_stake(
+        coal_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), payer.pubkey());
+    let ix = coal_miner_delegation::instruction::delegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         staker_token_balance,
@@ -810,11 +810,11 @@ pub async fn test_stake() {
 
     let staker_delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             staker.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
     let delegated_stake = context
         .banks_client
@@ -823,7 +823,7 @@ pub async fn test_stake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert_eq!(staker_token_balance, delegated_stake.amount);
 }
@@ -857,26 +857,26 @@ pub async fn test_unstake() {
         .expect("process_transaction should be ok");
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             miner.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(miner.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(miner.pubkey());
 
     let ix_delegate_stake =
-        ore_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), payer.pubkey());
+        coal_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), payer.pubkey());
     let mut tx = Transaction::new_with_payer(&[ix, ix_delegate_stake], Some(&miner.pubkey()));
 
     let blockhash = context
@@ -893,16 +893,16 @@ pub async fn test_unstake() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -915,7 +915,7 @@ pub async fn test_unstake() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -942,12 +942,12 @@ pub async fn test_unstake() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(miner.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(miner.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
-    let ix = ore_miner_delegation::instruction::mine(miner.pubkey(), BUS_ADDRESSES[0], solution);
+    let ix = coal_miner_delegation::instruction::mine(miner.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -969,14 +969,14 @@ pub async fn test_unstake() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -986,30 +986,30 @@ pub async fn test_unstake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     // create stakers ata
     let ix_2 = create_associated_token_account(
         &miner.pubkey(),
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
     // Claim from the delegated balance
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         miner.pubkey(),
         miner.pubkey(),
         staker_token_account_addr,
-        ore_proof.balance,
+        coal_proof.balance,
     );
 
     let mut tx = Transaction::new_with_payer(&[ix_2, ix], Some(&miner.pubkey()));
@@ -1028,14 +1028,14 @@ pub async fn test_unstake() {
         .await
         .expect("process_transaction should be ok");
 
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert_eq!(ore_proof.balance, 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert_eq!(coal_proof.balance, 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -1045,17 +1045,17 @@ pub async fn test_unstake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     let staker_token_account =
-        get_associated_token_address(&staker.pubkey(), &ore_api::consts::MINT_ADDRESS);
+        get_associated_token_address(&staker.pubkey(), &coal_api::consts::COAL_MINT_ADDRESS);
     let staker_token_account = context
         .banks_client
         .get_account(staker_token_account)
@@ -1070,7 +1070,7 @@ pub async fn test_unstake() {
     let ix1 = create_associated_token_account(
         &miner.pubkey(),
         &managed_proof_account.0,
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
@@ -1087,8 +1087,8 @@ pub async fn test_unstake() {
 
     // Delegate stake from staker to miner pool
     let ix0 =
-        ore_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), payer.pubkey());
-    let ix = ore_miner_delegation::instruction::delegate_stake(
+        coal_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), payer.pubkey());
+    let ix = coal_miner_delegation::instruction::delegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         staker_token_balance,
@@ -1112,11 +1112,11 @@ pub async fn test_unstake() {
 
     let staker_delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             staker.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
     let delegated_stake = context
         .banks_client
@@ -1125,12 +1125,12 @@ pub async fn test_unstake() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert_eq!(staker_token_balance, delegated_stake.amount);
 
     // Unstake
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         staker_token_account_addr,
@@ -1171,22 +1171,22 @@ pub async fn test_init_twice() {
     let mut context = init_program().await;
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, context.payer.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             context.payer.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
 
     // send some sol to the pda to ensure the program will clear the balanace and then open the account
     let ix0 =
         system_instruction::transfer(&context.payer.pubkey(), &managed_proof_account.0, 100000000);
-    let ix1 = ore_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
+    let ix1 = coal_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
 
     // send some sol to the pda to ensure the program will clear the balanace and then open the account
     let ix2 = system_instruction::transfer(
@@ -1194,7 +1194,7 @@ pub async fn test_init_twice() {
         &delegated_stake_account.0,
         100000000,
     );
-    let ix_delegate_stake = ore_miner_delegation::instruction::init_delegate_stake(
+    let ix_delegate_stake = coal_miner_delegation::instruction::init_delegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         context.payer.pubkey(),
@@ -1220,7 +1220,7 @@ pub async fn test_init_twice() {
 
     let ix0 =
         system_instruction::transfer(&context.payer.pubkey(), &managed_proof_account.0, 100000000);
-    let ix1 = ore_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
+    let ix1 = coal_miner_delegation::instruction::open_managed_proof(context.payer.pubkey());
 
     // send some sol to the pda to ensure the program will clear the balanace and then open the account
     let ix2 = system_instruction::transfer(
@@ -1228,7 +1228,7 @@ pub async fn test_init_twice() {
         &delegated_stake_account.0,
         100000000,
     );
-    let ix_delegate_stake = ore_miner_delegation::instruction::init_delegate_stake(
+    let ix_delegate_stake = coal_miner_delegation::instruction::init_delegate_stake(
         context.payer.pubkey(),
         context.payer.pubkey(),
         context.payer.pubkey(),
@@ -1278,26 +1278,26 @@ pub async fn test_unstake_faker() {
         .expect("process_transaction should be ok");
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             miner.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(miner.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(miner.pubkey());
 
     let ix_delegate_stake =
-        ore_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), miner.pubkey());
+        coal_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), miner.pubkey());
     let mut tx = Transaction::new_with_payer(&[ix, ix_delegate_stake], Some(&miner.pubkey()));
 
     let blockhash = context
@@ -1314,16 +1314,16 @@ pub async fn test_unstake_faker() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -1336,7 +1336,7 @@ pub async fn test_unstake_faker() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -1363,12 +1363,12 @@ pub async fn test_unstake_faker() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(miner.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(miner.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
-    let ix = ore_miner_delegation::instruction::mine(miner.pubkey(), BUS_ADDRESSES[0], solution);
+    let ix = coal_miner_delegation::instruction::mine(miner.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -1390,14 +1390,14 @@ pub async fn test_unstake_faker() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -1407,30 +1407,30 @@ pub async fn test_unstake_faker() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     // create stakers ata
     let ix_2 = create_associated_token_account(
         &miner.pubkey(),
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
     // Claim from the delegated balance
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         miner.pubkey(),
         miner.pubkey(),
         staker_token_account_addr,
-        ore_proof.balance,
+        coal_proof.balance,
     );
 
     let mut tx = Transaction::new_with_payer(&[ix_2, ix], Some(&miner.pubkey()));
@@ -1449,14 +1449,14 @@ pub async fn test_unstake_faker() {
         .await
         .expect("process_transaction should be ok");
 
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert_eq!(ore_proof.balance, 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert_eq!(coal_proof.balance, 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -1466,9 +1466,9 @@ pub async fn test_unstake_faker() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account = context
         .banks_client
@@ -1484,7 +1484,7 @@ pub async fn test_unstake_faker() {
     let ix1 = create_associated_token_account(
         &miner.pubkey(),
         &managed_proof_account.0,
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
@@ -1502,8 +1502,8 @@ pub async fn test_unstake_faker() {
 
     // Delegate stake from staker to miner pool
     let ix0 =
-        ore_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
-    let ix = ore_miner_delegation::instruction::delegate_stake(
+        coal_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
+    let ix = coal_miner_delegation::instruction::delegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         initial_claimed_amount,
@@ -1527,11 +1527,11 @@ pub async fn test_unstake_faker() {
 
     let staker_delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             staker.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
     let delegated_stake = context
         .banks_client
@@ -1540,24 +1540,24 @@ pub async fn test_unstake_faker() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert_eq!(initial_claimed_amount, delegated_stake.amount);
 
     // Unstake
     let faker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &faker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     // create fakers ata
     let ix_1 = create_associated_token_account(
         &faker.pubkey(),
         &faker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         faker_token_account_addr,
@@ -1606,26 +1606,26 @@ pub async fn test_stake_window() {
         .expect("process_transaction should be ok");
 
     let managed_proof_account = Pubkey::find_program_address(
-        &[ore_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
-        &ore_miner_delegation::id(),
+        &[coal_miner_delegation::consts::MANAGED_PROOF, miner.pubkey().as_ref()],
+        &coal_miner_delegation::id(),
     );
     let delegated_stake_account = Pubkey::find_program_address(
         &[
-            ore_miner_delegation::consts::DELEGATED_STAKE,
+            coal_miner_delegation::consts::DELEGATED_STAKE,
             miner.pubkey().as_ref(),
             managed_proof_account.0.as_ref(),
         ],
-        &ore_miner_delegation::id(),
+        &coal_miner_delegation::id(),
     );
-    let ore_proof_account = Pubkey::find_program_address(
-        &[ore_api::consts::PROOF, managed_proof_account.0.as_ref()],
-        &ore_api::id(),
+    let coal_proof_account = Pubkey::find_program_address(
+        &[coal_api::consts::COAL_PROOF, managed_proof_account.0.as_ref()],
+        &coal_api::id(),
     );
 
-    let ix = ore_miner_delegation::instruction::open_managed_proof(miner.pubkey());
+    let ix = coal_miner_delegation::instruction::open_managed_proof(miner.pubkey());
 
     let ix_delegate_stake =
-        ore_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), miner.pubkey());
+        coal_miner_delegation::instruction::init_delegate_stake(miner.pubkey(), miner.pubkey(), miner.pubkey());
     let mut tx = Transaction::new_with_payer(&[ix, ix_delegate_stake], Some(&miner.pubkey()));
 
     let blockhash = context
@@ -1642,16 +1642,16 @@ pub async fn test_stake_window() {
         .await
         .expect("process_transaction should be ok");
 
-    // Verify ore::Proof data
-    let ore_proof = context
+    // Verify coal::Proof data
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
 
-    let proof = ore_proof.clone();
+    let proof = coal_proof.clone();
 
     let mut memory = equix::SolverMemory::new();
 
@@ -1664,7 +1664,7 @@ pub async fn test_stake_window() {
             drillx::hash_with_memory(&mut memory, &proof.challenge, &nonce.to_le_bytes())
         {
             let new_difficulty = hx.difficulty();
-            if new_difficulty.gt(&ore_api::consts::INITIAL_MIN_DIFFICULTY) {
+            if new_difficulty.gt(&coal_api::consts::INITIAL_MIN_DIFFICULTY) {
                 hash = hx;
                 nonce = nonce;
 
@@ -1691,12 +1691,12 @@ pub async fn test_stake_window() {
     let solution = drillx::Solution::new(hash.d, nonce.to_le_bytes());
 
     let cu_limit_ix = ComputeBudgetInstruction::set_compute_unit_limit(550000);
-    let ix0 = ore_api::instruction::reset(miner.pubkey());
+    let ix0 = coal_api::instruction::reset_coal(miner.pubkey());
 
     // Set ix1 to be the proof declaration authentication
-    let proof_declaration = ore_api::instruction::auth(ore_proof_account.0);
+    let proof_declaration = coal_api::instruction::auth(coal_proof_account.0);
 
-    let ix = ore_miner_delegation::instruction::mine(miner.pubkey(), BUS_ADDRESSES[0], solution);
+    let ix = coal_miner_delegation::instruction::mine(miner.pubkey(), COAL_BUS_ADDRESSES[0], solution);
 
     let mut tx = Transaction::new_with_payer(
         &[cu_limit_ix, proof_declaration, ix0, ix],
@@ -1718,14 +1718,14 @@ pub async fn test_stake_window() {
         .expect("process_transaction should be ok");
 
     // Verify proof account balance is updated
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert!(ore_proof.balance > 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert!(coal_proof.balance > 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -1735,30 +1735,30 @@ pub async fn test_stake_window() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
     assert!(delegated_stake.amount > 0);
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account_addr = spl_associated_token_account::get_associated_token_address(
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
     );
 
     // create stakers ata
     let ix_2 = create_associated_token_account(
         &miner.pubkey(),
         &staker.pubkey(),
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
     // Claim from the delegated balance
-    let ix = ore_miner_delegation::instruction::undelegate_stake(
+    let ix = coal_miner_delegation::instruction::undelegate_stake(
         miner.pubkey(),
         miner.pubkey(),
         staker_token_account_addr,
-        ore_proof.balance,
+        coal_proof.balance,
     );
 
     let mut tx = Transaction::new_with_payer(&[ix_2, ix], Some(&miner.pubkey()));
@@ -1777,14 +1777,14 @@ pub async fn test_stake_window() {
         .await
         .expect("process_transaction should be ok");
 
-    let ore_proof = context
+    let coal_proof = context
         .banks_client
-        .get_account(ore_proof_account.0)
+        .get_account(coal_proof_account.0)
         .await
         .unwrap()
         .unwrap();
-    let ore_proof = ore_api::state::Proof::try_from_bytes(&ore_proof.data).unwrap();
-    assert_eq!(ore_proof.balance, 0);
+    let coal_proof = coal_api::state::Proof::try_from_bytes(&coal_proof.data).unwrap();
+    assert_eq!(coal_proof.balance, 0);
 
     // Verify miner's delegate stake account amount
     let delegated_stake = context
@@ -1794,9 +1794,9 @@ pub async fn test_stake_window() {
         .unwrap()
         .unwrap();
     let delegated_stake =
-        ore_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
+        coal_miner_delegation::state::DelegatedStake::try_from_bytes(&delegated_stake.data).unwrap();
 
-    assert_eq!(ore_proof.balance, delegated_stake.amount);
+    assert_eq!(coal_proof.balance, delegated_stake.amount);
 
     let staker_token_account = context
         .banks_client
@@ -1812,11 +1812,11 @@ pub async fn test_stake_window() {
     let ix1 = create_associated_token_account(
         &miner.pubkey(),
         &managed_proof_account.0,
-        &ore_api::consts::MINT_ADDRESS,
+        &coal_api::consts::COAL_MINT_ADDRESS,
         &spl_token::id(),
     );
 
-    // Update clock to be 1 second before the hour on 30 Aug, 2024
+    // Update clock to be 1 second befcoal the hour on 30 Aug, 2024
     let new_clock = solana_program::clock::Clock {
         slot: 0,
         epoch_start_timestamp: proof.last_hash_at + 60,
@@ -1830,8 +1830,8 @@ pub async fn test_stake_window() {
 
     // Delegate stake from staker to miner pool
     let ix0 =
-        ore_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
-    let ix = ore_miner_delegation::instruction::delegate_stake(
+        coal_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
+    let ix = coal_miner_delegation::instruction::delegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         initial_claimed_amount,
@@ -1866,8 +1866,8 @@ pub async fn test_stake_window() {
 
     // Delegate stake from staker to miner pool
     let ix0 =
-        ore_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
-    let ix = ore_miner_delegation::instruction::delegate_stake(
+        coal_miner_delegation::instruction::init_delegate_stake(staker.pubkey(), miner.pubkey(), miner.pubkey());
+    let ix = coal_miner_delegation::instruction::delegate_stake(
         staker.pubkey(),
         miner.pubkey(),
         initial_claimed_amount,
@@ -1891,9 +1891,9 @@ pub async fn test_stake_window() {
 
 pub async fn init_program() -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "ore_miner_delegation",
-        ore_miner_delegation::id(),
-        processor!(ore_miner_delegation::process_instruction),
+        "coal_miner_delegation",
+        coal_miner_delegation::id(),
+        processor!(coal_miner_delegation::process_instruction),
     );
 
     // Add Noop Program
@@ -1922,10 +1922,10 @@ pub async fn init_program() -> ProgramTestContext {
         },
     );
 
-    // Add Ore Program account
-    let data = read_file(&"tests/buffers/ore.so");
+    // Add Coal Program account
+    let data = read_file(&"tests/buffers/coal.so");
     program_test.add_account(
-        ore_api::id(),
+        coal_api::id(),
         Account {
             lamports: Rent::default().minimum_balance(data.len()).max(1),
             data,
@@ -1937,11 +1937,11 @@ pub async fn init_program() -> ProgramTestContext {
 
     let mut context = program_test.start_with_context().await;
 
-    // Initialize Ore Program
+    // Initialize Coal Program
     // TODO: initialize can only be called by the AUTHORIZED_INITIALIZER.
     // Will need to create the necessary accounts directly instead of using
     // the initialize instruction.
-    let ix = ore_api::instruction::initialize(context.payer.pubkey());
+    let ix = coal_api::instruction::reset_coal(context.payer.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&context.payer.pubkey()),

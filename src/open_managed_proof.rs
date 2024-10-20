@@ -14,7 +14,7 @@ pub fn process_open_managed_proof(
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let [miner, managed_proof_account_info, ore_proof_account_info, slothashes_sysvar, rent_sysvar, ore_program, system_program] =
+    let [miner, managed_proof_account_info, coal_proof_account_info, slothashes_sysvar, rent_sysvar, coal_program, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -32,7 +32,7 @@ pub fn process_open_managed_proof(
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
-    if *ore_program.key != ore_api::id() {
+    if *coal_program.key != coal_api::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -47,7 +47,7 @@ pub fn process_open_managed_proof(
 
     // CPI to create the proof account
     solana_program::program::invoke_signed(
-        &ore_api::instruction::open(
+        &coal_api::instruction::open_coal(
             managed_proof_account_pda.0,
             managed_proof_account_pda.0,
             *miner.key,
@@ -55,10 +55,10 @@ pub fn process_open_managed_proof(
         &[
             miner.clone(),
             managed_proof_account_info.clone(),
-            ore_proof_account_info.clone(),
+            coal_proof_account_info.clone(),
             slothashes_sysvar.clone(),
             rent_sysvar.clone(),
-            ore_program.clone(),
+            coal_program.clone(),
             system_program.clone(),
         ],
         &[&[
@@ -76,7 +76,7 @@ pub fn process_open_managed_proof(
     let cost = rent.minimum_balance(space);
 
     if managed_proof_account_info.lamports() > 0 {
-        // cleanup any lamports that may have been sent before our program
+        // cleanup any lamports that may have been sent befcoal our program
         // created the account
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::transfer(

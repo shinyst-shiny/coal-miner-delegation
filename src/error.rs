@@ -3,13 +3,13 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u32)]
-pub enum OreDelegationError {
+pub enum CoalDelegationError {
     #[error("Stake delegation window is currently closed")]
     StakeWindowClosed,
 }
 
-impl From<OreDelegationError> for solana_program::program_error::ProgramError {
-    fn from(e: OreDelegationError) -> Self {
+impl From<CoalDelegationError> for solana_program::program_error::ProgramError {
+    fn from(e: CoalDelegationError) -> Self {
         solana_program::program_error::ProgramError::Custom(e as u32)
     }
 }

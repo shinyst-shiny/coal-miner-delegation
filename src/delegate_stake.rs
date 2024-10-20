@@ -1,15 +1,15 @@
-use ore_utils::transfer;
+use coal_utils::spl::transfer;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, clock::Clock, sysvar::Sysvar};
 
 use crate::{
-    error::OreDelegationError, instruction::UndelegateStakeArgs, loaders::{load_delegated_stake, load_managed_proof}, state::ManagedProof, utils::AccountDeserialize
+    error::CoalDelegationError, instruction::UndelegateStakeArgs, loaders::{load_delegated_stake, load_managed_proof}, state::ManagedProof, utils::AccountDeserialize
 };
 
 pub fn process_delegate_stake(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let [staker, miner, managed_proof_account_info, ore_proof_account_info, managed_proof_account_token_account_info, staker_token_account_info, delegated_stake_account_info, treasury, treasury_tokens, ore_program, token_program] =
+    let [staker, miner, managed_proof_account_info, coal_proof_account_info, managed_proof_account_token_account_info, staker_token_account_info, delegated_stake_account_info, treasury, treasury_tokens, coal_program, token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -22,7 +22,7 @@ pub fn process_delegate_stake(
     if let Some(secs_passed_hour) = current_timestamp.checked_rem(3600) {
         // passed 5 mins
         if secs_passed_hour > 300 {
-            return Err(OreDelegationError::StakeWindowClosed.into());
+            return Err(CoalDelegationError::StakeWindowClosed.into());
         }
     } else {
         return Err(ProgramError::ArithmeticOverflow);
@@ -44,7 +44,7 @@ pub fn process_delegate_stake(
         true,
     )?;
 
-    if *ore_program.key != ore_api::id() {
+    if *coal_program.key != coal_api::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -66,20 +66,20 @@ pub fn process_delegate_stake(
         amount,
     )?;
 
-    // stake to ore program
+    // stake to coal program
     solana_program::program::invoke_signed(
-        &ore_api::instruction::stake(
+        &coal_api::instruction::stake_coal(
             *managed_proof_account_info.key,
             *managed_proof_account_token_account_info.key,
             amount,
         ),
         &[
             managed_proof_account_info.clone(),
-            ore_proof_account_info.clone(),
+            coal_proof_account_info.clone(),
             managed_proof_account_token_account_info.clone(),
             treasury.clone(),
             treasury_tokens.clone(),
-            ore_program.clone(),
+            coal_program.clone(),
             token_program.clone(),
         ],
         &[&[

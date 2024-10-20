@@ -1,4 +1,4 @@
-use ore_utils::AccountDeserialize as _;
+use coal_utils::AccountDeserialize as _;
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, system_program};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn process_mine(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(), ProgramError> {
-    let [miner, managed_proof_account_info, ore_bus_account_info, ore_config_account_info, ore_proof_account_info, delegated_stake_account_info, slothashes_sysvar, instructions_sysvar, ore_program, system_program] =
+    let [miner, managed_proof_account_info, coal_bus_account_info, coal_config_account_info, coal_proof_account_info, delegated_stake_account_info, slothashes_sysvar, instructions_sysvar, coal_program, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -23,7 +23,7 @@ pub fn process_mine(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result
     load_managed_proof(managed_proof_account_info, miner.key, true)?;
     load_delegated_stake(delegated_stake_account_info, miner.key, managed_proof_account_info.key, true)?;
 
-    if *ore_program.key != ore_api::id() {
+    if *coal_program.key != coal_api::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -31,9 +31,9 @@ pub fn process_mine(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let balance_before = if let Ok(data) = ore_proof_account_info.data.try_borrow() {
-        let ore_proof = ore_api::state::Proof::try_from_bytes(&data)?;
-        ore_proof.balance
+    let balance_befcoal = if let Ok(data) = coal_proof_account_info.data.try_borrow() {
+        let coal_proof = coal_api::state::Proof::try_from_bytes(&data)?;
+        coal_proof.balance
     } else {
         return Err(ProgramError::AccountBorrowFailed);
     };
@@ -46,20 +46,20 @@ pub fn process_mine(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result
     // CPI to submit the solution
     let solution = drillx::Solution::new(args.digest, args.nonce);
     solana_program::program::invoke_signed(
-        &ore_api::instruction::mine(
+        &coal_api::instruction::mine_coal(
             *managed_proof_account_info.key,
             *managed_proof_account_info.key,
-            *ore_bus_account_info.key,
+            *coal_bus_account_info.key,
             solution,
         ),
         &[
             managed_proof_account_info.clone(),
-            ore_proof_account_info.clone(),
+            coal_proof_account_info.clone(),
             slothashes_sysvar.clone(),
-            ore_bus_account_info.clone(),
-            ore_config_account_info.clone(),
+            coal_bus_account_info.clone(),
+            coal_config_account_info.clone(),
             instructions_sysvar.clone(),
-            ore_program.clone(),
+            coal_program.clone(),
             system_program.clone(),
         ],
         &[&[
@@ -69,14 +69,14 @@ pub fn process_mine(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result
         ]],
     )?;
 
-    let balance_after = if let Ok(data) = ore_proof_account_info.data.try_borrow() {
-        let ore_proof = ore_api::state::Proof::try_from_bytes(&data)?;
-        ore_proof.balance
+    let balance_after = if let Ok(data) = coal_proof_account_info.data.try_borrow() {
+        let coal_proof = coal_api::state::Proof::try_from_bytes(&data)?;
+        coal_proof.balance
     } else {
         return Err(ProgramError::AccountBorrowFailed);
     };
 
-    let miner_rewards_earned = if let Some(difference) = balance_after.checked_sub(balance_before) {
+    let miner_rewards_earned = if let Some(difference) = balance_after.checked_sub(balance_befcoal) {
         difference
     } else {
         return Err(ProgramError::ArithmeticOverflow);

@@ -11,7 +11,7 @@ pub fn process_undelegate_stake(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let [staker, miner, managed_proof_account_info, ore_proof_account_info, beneficiary_token_account_info, delegated_stake_account_info, treasury, treasury_tokens, ore_program, token_program] =
+    let [staker, miner, managed_proof_account_info, coal_proof_account_info, beneficiary_token_account_info, delegated_stake_account_info, treasury, treasury_tokens, coal_program, token_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -33,7 +33,7 @@ pub fn process_undelegate_stake(
         true,
     )?;
 
-    if *ore_program.key != ore_api::id() {
+    if *coal_program.key != coal_api::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -61,20 +61,20 @@ pub fn process_undelegate_stake(
         }
     }
 
-    // stake to ore program
+    // stake to coal program
     solana_program::program::invoke_signed(
-        &ore_api::instruction::claim(
+        &coal_api::instruction::claim_coal(
             *managed_proof_account_info.key,
             *beneficiary_token_account_info.key,
             amount,
         ),
         &[
             managed_proof_account_info.clone(),
-            ore_proof_account_info.clone(),
+            coal_proof_account_info.clone(),
             beneficiary_token_account_info.clone(),
             treasury.clone(),
             treasury_tokens.clone(),
-            ore_program.clone(),
+            coal_program.clone(),
         ],
         &[&[
             crate::consts::MANAGED_PROOF,

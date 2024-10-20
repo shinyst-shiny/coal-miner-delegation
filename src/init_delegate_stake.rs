@@ -51,7 +51,7 @@ pub fn process_init_delegate_stake(
     let cost = rent.minimum_balance(space);
 
     if delegate_stake_account_info.lamports() > 0 {
-        // cleanup any lamports that may have been sent before our program
+        // cleanup any lamports that may have been sent befcoal our program
         // created the account
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::transfer(

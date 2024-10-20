@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use drillx::Solution;
 use num_enum::TryFromPrimitive;
-use ore_api::state::proof_pda;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -38,17 +37,17 @@ impl_instruction_from_bytes!(MineArgs);
 
 pub fn open_managed_proof(miner: Pubkey) -> Instruction {
     let managed_proof_address = managed_proof_pda(miner);
-    let ore_proof_address = proof_pda(managed_proof_address.0);
+    let coal_proof_address = managed_proof_pda(managed_proof_address.0);
 
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(miner, true),
             AccountMeta::new(managed_proof_address.0, false),
-            AccountMeta::new(ore_proof_address.0, false),
+            AccountMeta::new(coal_proof_address.0, false),
             AccountMeta::new_readonly(sysvar::slot_hashes::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
-            AccountMeta::new_readonly(ore_api::id(), false),
+            AccountMeta::new_readonly(coal_api::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: Instructions::OpenManagedProof.to_vec(),
@@ -83,7 +82,7 @@ pub struct MineArgs {
 
 pub fn mine(miner: Pubkey, bus: Pubkey, solution: Solution) -> Instruction {
     let managed_proof_address = managed_proof_pda(miner);
-    let ore_proof_address = proof_pda(managed_proof_address.0);
+    let coal_proof_address = managed_proof_pda(managed_proof_address.0);
     let delegated_stake_address = delegated_stake_pda(miner, miner);
 
     Instruction {
@@ -92,12 +91,12 @@ pub fn mine(miner: Pubkey, bus: Pubkey, solution: Solution) -> Instruction {
             AccountMeta::new(miner, true),
             AccountMeta::new(managed_proof_address.0, false),
             AccountMeta::new(bus, false),
-            AccountMeta::new_readonly(ore_api::consts::CONFIG_ADDRESS, false),
-            AccountMeta::new(ore_proof_address.0, false),
+            AccountMeta::new_readonly(coal_api::consts::COAL_CONFIG_ADDRESS, false),
+            AccountMeta::new(coal_proof_address.0, false),
             AccountMeta::new(delegated_stake_address.0, false),
             AccountMeta::new_readonly(sysvar::slot_hashes::id(), false),
             AccountMeta::new_readonly(sysvar::instructions::id(), false),
-            AccountMeta::new_readonly(ore_api::id(), false),
+            AccountMeta::new_readonly(coal_api::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
@@ -124,13 +123,13 @@ impl_instruction_from_bytes!(DelegateStakeArgs);
 
 pub fn delegate_stake(staker: Pubkey, miner: Pubkey, amount: u64) -> Instruction {
     let managed_proof_address = managed_proof_pda(miner);
-    let ore_proof_address = proof_pda(managed_proof_address.0);
+    let coal_proof_address = managed_proof_pda(managed_proof_address.0);
     let delegated_stake_address = delegated_stake_pda(miner, staker);
 
     let staker_token_account =
-        get_associated_token_address(&staker, &ore_api::consts::MINT_ADDRESS);
+        get_associated_token_address(&staker, &coal_api::consts::COAL_MINT_ADDRESS);
     let managed_proof_token_account =
-        get_associated_token_address(&managed_proof_address.0, &ore_api::consts::MINT_ADDRESS);
+        get_associated_token_address(&managed_proof_address.0, &coal_api::consts::COAL_MINT_ADDRESS);
 
     Instruction {
         program_id: crate::id(),
@@ -138,13 +137,13 @@ pub fn delegate_stake(staker: Pubkey, miner: Pubkey, amount: u64) -> Instruction
             AccountMeta::new(staker, true),
             AccountMeta::new_readonly(miner, false),
             AccountMeta::new(managed_proof_address.0, false),
-            AccountMeta::new(ore_proof_address.0, false),
+            AccountMeta::new(coal_proof_address.0, false),
             AccountMeta::new(managed_proof_token_account, false),
             AccountMeta::new(staker_token_account, false),
             AccountMeta::new(delegated_stake_address.0, false),
-            AccountMeta::new(ore_api::consts::TREASURY_ADDRESS, false),
-            AccountMeta::new(ore_api::consts::TREASURY_TOKENS_ADDRESS, false),
-            AccountMeta::new_readonly(ore_api::id(), false),
+            AccountMeta::new(coal_api::consts::TREASURY_ADDRESS, false),
+            AccountMeta::new(coal_api::consts::COAL_TREASURY_TOKENS_ADDRESS, false),
+            AccountMeta::new_readonly(coal_api::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: [
@@ -175,7 +174,7 @@ pub fn undelegate_stake(
     amount: u64,
 ) -> Instruction {
     let managed_proof_address = managed_proof_pda(miner);
-    let ore_proof_address = proof_pda(managed_proof_address.0);
+    let coal_proof_address = managed_proof_pda(managed_proof_address.0);
     let delegated_stake_address = delegated_stake_pda(miner, staker);
 
     Instruction {
@@ -184,12 +183,12 @@ pub fn undelegate_stake(
             AccountMeta::new(staker, true),
             AccountMeta::new_readonly(miner, false),
             AccountMeta::new(managed_proof_address.0, false),
-            AccountMeta::new(ore_proof_address.0, false),
+            AccountMeta::new(coal_proof_address.0, false),
             AccountMeta::new(beneficiary_token_account, false),
             AccountMeta::new(delegated_stake_address.0, false),
-            AccountMeta::new(ore_api::consts::TREASURY_ADDRESS, false),
-            AccountMeta::new(ore_api::consts::TREASURY_TOKENS_ADDRESS, false),
-            AccountMeta::new_readonly(ore_api::id(), false),
+            AccountMeta::new(coal_api::consts::TREASURY_ADDRESS, false),
+            AccountMeta::new(coal_api::consts::COAL_TREASURY_TOKENS_ADDRESS, false),
+            AccountMeta::new_readonly(coal_api::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data: [
