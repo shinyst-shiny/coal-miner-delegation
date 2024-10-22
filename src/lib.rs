@@ -17,7 +17,7 @@ pub mod utils;
 pub mod pda;
 pub mod error;
 
-declare_id!("J6XAzG8S5KmoBM8GcCFfF8NmtzD7U3QPnbhNiYwsu9we");
+declare_id!("8K6pjEPbPC6TC5kDXigNpAwWWsHYwHAKQjASAdYXS8ww");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_program::entrypoint!(process_instruction);

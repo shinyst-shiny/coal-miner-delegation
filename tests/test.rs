@@ -1941,7 +1941,7 @@ pub async fn init_program() -> ProgramTestContext {
     // TODO: initialize can only be called by the AUTHORIZED_INITIALIZER.
     // Will need to create the necessary accounts directly instead of using
     // the initialize instruction.
-    let ix = coal_api::instruction::reset_coal(context.payer.pubkey());
+    let ix = coal_api::instruction::init_coal(context.payer.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&context.payer.pubkey()),
